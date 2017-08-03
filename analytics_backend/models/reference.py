@@ -60,6 +60,34 @@ class ParamsAppModel(db.Model):
         return [row.date_param_cd for row in query.all()]
 
 
+    #,row.upper_bound,row.prev_lower_bound,row.prev_upper_bound,row.param_name
+
+
+    @classmethod
+    def get_param_data(cls, business_account_id):
+
+        lower_bound=[]
+        try:
+            for row in db.session.query(ParamsAppModel).all():
+
+                return (row.lower_bound,row.upper_bound,row.prev_lower_bound,row.prev_upper_bound,row.param_name)
+                #lower_bound.append(row.lower_bound)
+            #print(lower_bound)
+        except exc.SQLAlchemyError as e:
+            return "Database Exception When Redeaing Param App table", e
+
+        # return {"lower_bound": convert_date_format(result.lower_bound, current_config.REPORT_DB_DATE_FORMAT,
+        #                                            current_config.PIKA_AN_DATE_FORMAT),
+        #         "upper_bound": convert_date_format(result.upper_bound, current_config.REPORT_DB_DATE_FORMAT,
+        #                                            current_config.PIKA_AN_DATE_FORMAT),
+        #         "prev_lower_bound": convert_date_format(result.prev_lower_bound, current_config.REPORT_DB_DATE_FORMAT,
+        #                                                 current_config.PIKA_AN_DATE_FORMAT),
+        #         "prev_upper_bound": convert_date_format(result.prev_upper_bound, current_config.REPORT_DB_DATE_FORMAT,
+        #                                                 current_config.PIKA_AN_DATE_FORMAT),
+        #         "report_date": convert_date_format(str(result.report_date), current_config.REPORT_DB_DATETIME_FORMAT,
+        #                                            current_config.PIKA_AN_DATE_FORMAT)
+        #         }
+
 class ConsumerTagsModel(db.Model):
     __tablename__ = 'ref_consumer_tags'
 

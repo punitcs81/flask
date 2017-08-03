@@ -1,4 +1,5 @@
 from flask import Blueprint
+from flask_cors import CORS
 
 
 report_api = Blueprint('report_api',__name__+'report')
@@ -6,6 +7,8 @@ report_api = Blueprint('report_api',__name__+'report')
 # analytics_api = Blueprint('api', __name__+"_analytics")
 task_api = Blueprint('realtime',__name__+"realtime")
 audit_blueprint = Blueprint('audit',__name__+"audit")
+
+CORS(report_api)
 
 from analytics_backend.api import consumers
 from analytics_backend.api import realtime

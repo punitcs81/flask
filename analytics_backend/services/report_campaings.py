@@ -314,15 +314,15 @@ def __campaign_summary(from_date, to_date, business_account_id, store_ids):
     channel_list = []
 
     sql_string = """select t1.channel,count(*) as count,t1.response
-             from pika_dm.rt_consumer_campaign_response t1
-             join pika_dm.dim_business_account t2
-             on t1.business_account_id=t2. business_account_id 
-             and t1.business_account_s_key = t2.s_key           
-             where t1.business_account_id ={business_account_id}
-             and t2.end_date = '9999-12-31 00:00:00'            
-             and channel in ('SMS','NOTIFICATION') 
-             and response in ('DELIVERED','CONVERTED') 
-             and response_date between \'{from_date}\' and \'{to_date}\'"""
+                    from pika_dm.rt_consumer_campaign_response t1
+                    join pika_dm.dim_business_account t2
+                    on t1.business_account_id=t2. business_account_id 
+                    and t1.business_account_s_key = t2.s_key           
+                    where t1.business_account_id ={business_account_id}
+                    and t2.end_date = '9999-12-31 00:00:00'            
+                    and channel in ('SMS','NOTIFICATION') 
+                    and response in ('DELIVERED','CONVERTED') 
+                    and response_date between \'{from_date}\' and \'{to_date}\'"""
 
              #group by channel,response"""
 
@@ -412,10 +412,10 @@ def __campaign_summary(from_date, to_date, business_account_id, store_ids):
     ###################### campaign data - campaign
 
     sql = """select count(*) as campaigns
-                 from pika_dm.dim_campaign
-                 where end_date between \'{from_date}\' and \'{to_date}\'
-                 and business_account_id={business_account_id}
-                 and start_date between \'{from_date}\' and \'{to_date}\' """
+             from pika_dm.dim_campaign
+             where end_date between \'{from_date}\' and \'{to_date}\'
+             and business_account_id={business_account_id}
+             and start_date between \'{from_date}\' and \'{to_date}\' """
 
     formatted_sql = sql.format(**arguments)
 
@@ -906,22 +906,24 @@ def __campaign_trend(report_date, from_date, to_date, business_account_id, store
     sub_list = []
 
     sql = """select t1.response_date,t1.response,sum(t1.consumer_count) as count
-                     from pika_dm.agg_campaign_performance_daily t1
-                     join pika_dm.dim_campaign t2
-                     on t1.campaign_s_key  = t2.s_key
-                     where t1.business_account_id = {business_account_id}  
-                     and response in ('CONVERTED','DELIVERED') """  # and t1.store_id = %s and t2.campaign_id ={campaign_id}
+             from pika_dm.agg_campaign_performance_daily t1
+             join pika_dm.rel_campaign_business_store t2
+             on t1.campaign_id  = t2.campaign_id
+             and t1.business_account_id = t2.business_account_id
+             and t1.store_id = t2.store_id
+             where t1.business_account_id = {business_account_id} 
+             and response in ('CONVERTED','DELIVERED')"""  # and t1.store_id = %s and t2.campaign_id ={campaign_id}
     # group by response_date,response  """%(store_ids)
 
     if store_ids is None:
-        a = 'and campaign_id in (' + ','.join(map(str, campaign_id)) + ') group by response_date,response'
+        a = ' and t2.campaign_id in (' + ','.join(map(str, campaign_id)) + ') group by response_date,response'
 
         s = sql + a
 
     else:
 
         # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
-        s = sql + 'and campaign_id in (' + ','.join(map(str, campaign_id)) + ') and store_id in (' + ','.join(
+        s = sql + ' and t2.campaign_id in (' + ','.join(map(str, campaign_id)) + ') and t1.store_id in (' + ','.join(
             map(str, store_ids)) + ') group by  response_date,response'  # %(store_ids)
 
     formatted_sql = s.format(**arguments)
@@ -977,22 +979,23 @@ def __rt_campaign_trend(report_date, from_date, to_date, business_account_id, da
     sub_list = []
 
     sql = """select t1.response_date,t1.response,sum(t1.consumer_count) as count
-                 from pika_dm.agg_campaign_performance_daily t1
-                 join pika_dm.dim_campaign t2
-                 on t1.campaign_s_key  = t2.s_key
-                 where t1.business_account_id = {business_account_id}  
-                 and response in ('CONVERTED','DELIVERED') """# and t1.store_id = %s and t2.campaign_id ={campaign_id}
-                 #group by response_date,response  """%(store_ids)
+             from pika_dm.agg_campaign_performance_daily t1
+             join pika_dm.rel_campaign_business_store t2
+             on t1.campaign_id  = t2.campaign_id
+             and t1.business_account_id = t2.business_account_id
+             and t1.store_id = t2.store_id
+             where t1.business_account_id = {business_account_id} 
+             and response in ('CONVERTED','DELIVERED')"""
 
     if store_ids is None:
-        a = 'and campaign_id in (' + ','.join(map(str,campaign_id)) + ') group by response_date,response'
+        a = 'and t2.campaign_id in (' + ','.join(map(str,campaign_id)) + ') group by response_date,response'
 
         s = sql + a
 
     else:
 
         # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
-        s = sql + 'and campaign_id in (' + ','.join(map(str,campaign_id)) + ') and store_id in (' + ','.join(map(str,store_ids)) + ') group by  response_date,response'  # %(store_ids)
+        s = sql + 'and t2.campaign_id in (' + ','.join(map(str,campaign_id)) + ') and t1.store_id in (' + ','.join(map(str,store_ids)) + ') group by  response_date,response'  # %(store_ids)
 
     formatted_sql = s.format(**arguments)
     print(formatted_sql)

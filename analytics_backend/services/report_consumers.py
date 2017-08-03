@@ -63,7 +63,7 @@ def consumer_segment_summary(business_account_id, date_param_cd, store_ids: list
 
     if date_range:
         lower_bound = date_range['lower_bound']
-        upper_bound = date_range['upper_bound']
+        upper_bound =date_range['upper_bound']
         prev_lower_bound = date_range['prev_lower_bound']
         prev_upper_bound = date_range['prev_upper_bound']
         report_date = date_range['report_date']
@@ -72,13 +72,18 @@ def consumer_segment_summary(business_account_id, date_param_cd, store_ids: list
             "ParamAppModel returns no corresponding date range for business_account_id=%s and date param"
             % (business_account_id, date_param_cd))
     summary_df = __consumer_tags_summary(report_date, lower_bound, upper_bound, business_account_id)
+    print(summary_df)
     prev_summary_df = __consumer_tags_summary(report_date, prev_lower_bound, prev_upper_bound, business_account_id)
+
     if store_ids:
         summary_df = summary_df[summary_df['attributed_store_id'].isin(store_ids)]
+        print(summary_df)
         prev_summary_df = prev_summary_df[prev_summary_df['attributed_store_id'].isin(store_ids)]
+        print(prev_summary_df)
     key_columns = ['gender', 'recency', 'age_group', 'frequency', 'monetary', 'clv_1year_level', 'clv_3year_level',
                    'badge', 'attributed_store_id']
     comb_summary_df = pd.merge(summary_df, prev_summary_df, how='left', on=key_columns, suffixes=['_curr', '_prev'])
+    print(comb_summary_df)
     comb_summary_df.fillna(0, inplace=True)
     return comb_summary_df
 
@@ -114,23 +119,28 @@ def consumer_segment_counts_trends(business_account_id, date_param_cd, store_ids
     if store_ids:
         summary_df = summary_df[summary_df['attributed_store_id'].isin(store_ids)]
 
+
     # Potential function if there are a lot of trends APIs on date
 
     all_date_df = pd.DataFrame(DateModel.get_days_between_dates(lower_bound, upper_bound))
     joined_summary_df = pd.merge(all_date_df, summary_df, how='left', left_on='full_date', right_on='date')
     joined_summary_df.fillna(0, inplace=True)
     joined_summary_df['full_date'] = joined_summary_df['full_date'].dt.strftime(db_date_format)
+    print(joined_summary_df)
+
 
     if aggregate_level == 'daily':
         joined_summary_df.drop(['date', 'attributed_store_id', 'Monday_Date_Of_Week', 'day_of_month'], axis=1,
                                inplace=True)
         joined_summary_df.rename(columns={'full_date': 'date'}, inplace=True)
         final_df = joined_summary_df.groupby('date').sum()
+        print(final_df)
     elif aggregate_level == 'weekly':
         joined_summary_df.drop(['date', 'attributed_store_id', 'full_date', 'day_of_month', 'day_of_month'], axis=1,
                                inplace=True)
         joined_summary_df.rename(columns={'Monday_Date_Of_Week': 'date'}, inplace=True)
         final_df = joined_summary_df.groupby('date').sum()
+        print(final_df)
     else:
         raise ValueError("aggregate level is wrong : %s" % aggregate_level)
     # final_df.set_index('date',inplace=True) #not required as groupby set the index already
@@ -248,21 +258,21 @@ def __consumer_tags_summary(report_date, from_date, to_date, business_account_id
 
     sql = """select gender, recency,coalesce(age_group,'UNDEFINED') age_group, frequency, monetary, clv_1year_level,clv_3year_level,
                    badge , attributed_store_id, 
-                   count(distinct(consumer_id)) total_consumer_count,
+                   count(distinct(consumer_id)) count,
                    SUM(
                         CASE 
                         WHEN (registered_on BETWEEN \'{from_date}\' AND \'{to_date}\') THEN 1 
                         else 0 
                         end ) new_consumer_count
-                   from dim_business_consumer
+                   from pika_dm.dim_business_consumer
                    where business_account_id = {business_account_id}
- 				  and (\'{report_date}\' between sys_start_date AND sys_end_date )
+ 				  and (\'{report_date}\' between start_date AND end_date )
  				  and (registered_on between \'{from_date}\' and \'{to_date}\') 
                     group by gender, recency,age_group, frequency, monetary, clv_1year_level,clv_3year_level,
                badge,attributed_store_id"""
 
     formated_sql = sql.format(**arguments)
-
+    print(formated_sql)
     try:
         results = db.engine.execute(formated_sql, ())
         result_set = results.fetchall()
@@ -318,17 +328,18 @@ def __consumer_tags_counts_trends_dly(report_date, from_date, to_date, business_
             interaction_purchase_count purchase, 
             interaction_registration_count registration,
             consumer_new_count new_consumers,
-            consumer_exists_count existing_consumers,
+            consumer_total_count existing_consumers,
             consumer_platinum_count platinum,
             consumer_high_risk_count high_risk,
             interaction_redeem_count redemption,
             time_zone
             from 
-            agg_buss_store_stats_daily
+            pika_dm.agg_buss_store_stats_daily
             where business_account_id = {business_account_id}
             and (interaction_date between \'{from_date}\' and \'{to_date}\') """
 
     formated_sql = sql.format(**arguments)
+    print(formated_sql)
     try:
         results = db.engine.execute(text(formated_sql), ())
         result_set = results.fetchall()

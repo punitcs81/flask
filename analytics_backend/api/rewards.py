@@ -4,7 +4,7 @@ from flask import json, jsonify
 import pandas as pd
 
 from analytics_backend.api import report_api as report_blueprint
-from analytics_backend.resources.rewards import (RewardsSummary, RewardsList, RewardsActivitiesTrend)
+from analytics_backend.resources.rewards import RewardsSummary, RewardsList, RewardsActivitiesTrend,Ref_params
 
 api = Api(report_blueprint)
 
@@ -48,3 +48,4 @@ def output_csv(data, code, headers=None):
 api.add_resource(RewardsSummary, '/rewards-summary')
 api.add_resource(RewardsList, '/rewards-list')
 api.add_resource(RewardsActivitiesTrend, '/rewards-activities-trend')
+api.add_resource(Ref_params,'/ref_params')

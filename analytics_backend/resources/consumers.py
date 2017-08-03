@@ -166,7 +166,7 @@ class ConsumersSegmentCountsTrends(Resource):
                   'date_param_cd': fields.Str(required=True, validate=lambda val: val in
                                                                                   [r for r, in db.session.query(
                                                                                       ParamsAppModel.param_name_cd.distinct()).all()]),
-                  'aggregate_level': fields.Str(validate=lambda val: val in ['aggregate_level', 'weekly'])
+                  'aggregate_level': fields.Str(validate=lambda val: val in ['daily', 'weekly'])
                   }
 
     @use_args(input_args)
@@ -266,6 +266,7 @@ class RefConsumersSegmentList(Resource):
             return {"message": "Please use POST method to filter with tag_names"}, 303
 
         all_tags = pd.DataFrame(ConsumerTagsModel.get_tags(tag_type=constants.TAGS_CONSUMER_SEGMENT_TYPE))
+
         dict_out = {}
         for i_tag_name in all_tags.tag_name.unique():
             sub_df = all_tags[all_tags.tag_name == i_tag_name]
@@ -274,9 +275,11 @@ class RefConsumersSegmentList(Resource):
             dict_out[i_tag_name] = dict_node
         return dict_out
 
+
+
     @use_args(input_args)
-    # @pika_jwt_required
-    # @jwt_required()
+    #@pika_jwt_required
+    #@jwt_required()
     def post(self, args):
         print(args)
         all_tags = pd.DataFrame(ConsumerTagsModel.get_tags(tag_type=constants.TAGS_CONSUMER_SEGMENT_TYPE))
