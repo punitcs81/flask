@@ -7,7 +7,7 @@ from analytics_backend.api import report_api as report_blueprint
 from analytics_backend.resources.consumers import ConsumerSummary, ConsumerStoreSummary, ConsumerActivities, \
     RefConsumersSegmentCombination, RefConsumersSegmentList, ConsumersSegmentSummary
 from analytics_backend.resources.consumers import RefConsumersSegmentFilterStats, ConsumersSegmentCountsTrends, \
-    ConsumerLoyaltyInteractionSummary
+    ConsumerLoyaltyInteractionSummary,TestJwt,ConsumerVisit
 
 api = Api(report_blueprint)
 
@@ -62,3 +62,8 @@ api.add_resource(RefConsumersSegmentList, '/consumers-segments-list')
 api.add_resource(ConsumersSegmentSummary, '/consumers-segments-summary')
 api.add_resource(ConsumersSegmentCountsTrends, '/consumers-segments-counts-trends')
 api.add_resource(ConsumerLoyaltyInteractionSummary, '/loyalty_interactions_summary')
+
+api.add_resource(ConsumerVisit,'/consumer_visit')
+################test jwt #####################
+
+api.add_resource(TestJwt,'/test')

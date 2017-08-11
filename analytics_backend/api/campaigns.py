@@ -5,7 +5,8 @@ import pandas as pd
 
 from analytics_backend.api import report_api as report_blueprint
 from analytics_backend.resources.campaigns import (CampaignsSummary, CampaignsResponseTrend, RTCampaignsResponseTrend,
-                                                   RTCampaignsSummary)
+                                                   RTCampaignsSummary,CampaignPerformance)
+
 
 api = Api(report_blueprint)
 
@@ -29,6 +30,14 @@ def output_json(data, code, headers=None):
         raise ValueError("JSON content negotiator expects data frame or dictionary objects as data input")
     return resp
 
+@api.representation('application/json')
+def output_json_exception(data, code, *args, **kwargs):
+    """Render exceptions as JSON documents with the exception's message."""
+    if isinstance(data, Exception):
+        data = {'status': code, 'message': str(data)}
+
+    return output_json(data, code, *args, **kwargs)
+
 
 @api.representation('text/csv')
 def output_csv(data, code, headers=None):
@@ -50,3 +59,4 @@ api.add_resource(CampaignsSummary, '/campaigns-summary')
 api.add_resource(CampaignsResponseTrend, '/campaigns-response-trend')
 api.add_resource(RTCampaignsSummary, '/RTcampaigns-summary')
 api.add_resource(RTCampaignsResponseTrend, '/RTcampaigns-response-trend')
+api.add_resource(CampaignPerformance,'/campaign-performance')

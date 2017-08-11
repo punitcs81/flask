@@ -7,15 +7,17 @@ from analytics_backend.services.report_consumers import consumer_summary, consum
 from analytics_backend.services.reports_feedbacks import feedbacks_summary, feedbacks_trend
 from analytics_backend.models.reference import ConsumerTagsModel, InteractionTypeModel, ParamsAppModel
 from analytics_backend import db
+from flask_jwt import jwt_required, current_identity
+from auth_jwt import validate_roles_and_access
 
 
 # This file should not have any dependecy with db.
 # db should only be in services
 # so return values to this file can be either dictionary or pandas
 class FeedbacksSummary(Resource):
-    input_args = {'business_account_id': fields.Int(required=True),
-                  'store_ids': fields.List(fields.Int(required=True)),
-                  'date_param_cd': fields.Str(required=True, validate=lambda val: val in
+    input_args = {'business_account_id': fields.Int(required=False),
+                  'store_ids': fields.List(fields.Int(required=False)),
+                  'date_param_cd': fields.Str(required=False, validate=lambda val: val in
                                                                                   [r for r, in db.session.query(
                                                                                       ParamsAppModel.param_name_cd.distinct()).all()])
                   }
@@ -26,7 +28,9 @@ class FeedbacksSummary(Resource):
     def get(self):
         return {"message": "there is no get request for the API "}, 404
 
+    @jwt_required()
     @use_args(input_args)
+    @validate_roles_and_access
     def post(self, args):
         # return {"message": "there is no get request for the API "}, 404
         try:
@@ -42,9 +46,9 @@ class FeedbacksSummary(Resource):
 
 
 class FeedbacksTrend(Resource):
-    input_args = {'business_account_id': fields.Int(required=True),
-                  'store_ids': fields.List(fields.Int(required=True)),
-                  'date_param_cd': fields.Str(required=True, validate=lambda val: val in
+    input_args = {'business_account_id': fields.Int(required=False),
+                  'store_ids': fields.List(fields.Int(required=False)),
+                  'date_param_cd': fields.Str(required=False, validate=lambda val: val in
                                                                                   [r for r, in db.session.query(
                                                                                       ParamsAppModel.param_name_cd.distinct()).all()])
                   }
@@ -55,7 +59,9 @@ class FeedbacksTrend(Resource):
     def get(self):
         return {"message": "there is no get request for the API "}, 404
 
+    @jwt_required()
     @use_args(input_args)
+    @validate_roles_and_access
     def post(self, args):
         # return {"message": "there is no get request for the API "}, 404
         try:

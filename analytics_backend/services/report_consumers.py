@@ -236,6 +236,31 @@ def consumer_loyalty_interaction_summary(business_account_id, date_param_cd, sto
     # parsed = json.loads(json_out)
     return comb_interaction_df
 
+def consumer_visit(business_account_id, store_ids, date_param_cd):
+
+        if date_param_cd not in [r for r, in db.session.query(ParamsAppModel.param_name_cd.distinct()).all()]:
+            raise ValueError("Wrong date_param_cd")
+        date_range = ParamsAppModel.get_date_range(business_account_id, date_param_cd)
+
+        if date_range:
+            lower_bound = date_range['lower_bound']
+            upper_bound = date_range['upper_bound']
+            prev_lower_bound = date_range['prev_lower_bound']
+            prev_upper_bound = date_range['prev_upper_bound']
+            report_date = date_range['report_date']
+            print(lower_bound)
+            print(upper_bound)
+        else:
+            raise DatabaseError(
+                "ParamAppModel returns no corresponding date range for business_account_id=%s and date param"
+                % (business_account_id, date_param_cd))
+
+
+        output = __consumer_visit(lower_bound, upper_bound, business_account_id, store_ids)
+
+        #return {"message": "Please use POST method to filter with tag_names"},404
+        return output
+
 
 ########################################################################################################################
 # Protected methods
@@ -244,7 +269,7 @@ def consumer_loyalty_interaction_summary(business_account_id, date_param_cd, sto
 def __consumer_tags_summary(report_date, from_date, to_date, business_account_id: int):
     # Dates are converted to MySQL DB date (as per config param). This is to avoid sending %d kind of string
     # for SQLAlchemy to handle
-
+    print(to_date,from_date)
     if not dt.validate_date_format(report_date, current_config.REPORT_DB_DATE_FORMAT):
         raise ValueError("report_date: %s failed validation. Expected Format is %s" % report_date,
                          current_config.REPORT_DB_DATE_FORMAT)
@@ -283,6 +308,7 @@ def __consumer_tags_summary(report_date, from_date, to_date, business_account_id
     if df.empty is True:
         return None
     df.columns = results.keys()
+
     return df
 
 
@@ -320,8 +346,7 @@ def __consumer_tags_counts_trends_dly(report_date, from_date, to_date, business_
     #                 clv_3year_level,badge,attributed_store_id"""
     #
 
-    sql = """          
-            select 
+    sql = """ select 
             store_id attributed_store_id,
             DATE_FORMAT(interaction_date,\'%Y-%m-%d\') 'date', 
             interaction_checkin_count checkin, 
@@ -336,7 +361,7 @@ def __consumer_tags_counts_trends_dly(report_date, from_date, to_date, business_
             from 
             pika_dm.agg_buss_store_stats_daily
             where business_account_id = {business_account_id}
-            and (interaction_date between \'{from_date}\' and \'{to_date}\') """
+            and (interaction_date between '2014-05-24' and '2014-12-31') """
 
     formated_sql = sql.format(**arguments)
     print(formated_sql)
@@ -377,8 +402,8 @@ def _consumer_loyalty_interactions_summary(report_date, from_date, to_date, busi
           ,interaction_type_category
           ,sum(currency_value) total_value
           ,count( *) number_of_events 
-          , count(distinct consumer_id ) distinct_consumer_events
-        from rt_consumer_events
+          , count(distinct business_consumer_id ) distinct_consumer_events
+        from pika_dm.rt_consumer_events
         where business_account_id ={business_account_id}
         and interaction_date between \'{from_date}\' and \'{to_date}\'
         
@@ -392,7 +417,7 @@ def _consumer_loyalty_interactions_summary(report_date, from_date, to_date, busi
           """
 
     formated_sql = sql.format(**arguments)
-
+    print(formated_sql)
     try:
         results = db.engine.execute(text(formated_sql), ())
         result_set = results.fetchall()
@@ -492,3 +517,174 @@ def __consumer_activites_timeseries_weekly(report_date, from_date, to_date, busi
         df.columns = results.keys()
     return df
     pass
+
+
+
+
+
+
+#
+# def __consumer_growth(from_date, to_date, business_account_id, store_ids):
+#     #return {"message": "Please use POST method to filter with tag_names inside"}, 404
+#     arguments = locals()
+#
+#     print( from_date, to_date, business_account_id,  store_ids)
+#     campaign_dict = dict()
+#
+#     campaign_dict['api_name'] = 'consumer growth'
+#
+#
+#
+#     report_duration_dict = dict()
+#
+#     start_date = from_date
+#     end_date = to_date
+#     report_duration_dict['start_date'] = start_date
+#     report_duration_dict['end_date'] = end_date
+#
+#     campaign_dict['report_duration'] = report_duration_dict
+#     campaign_dict['campaign_ids'] = campaign_id
+#
+#     sub_json = {}
+#     sub_list = []
+#
+#     sql = """select t1.response_date,t1.response,sum(t1.consumer_count) as count
+#                from pika_dm.agg_campaign_performance_daily t1
+#                join pika_dm.rel_campaign_business_store t2
+#                on t1.campaign_id  = t2.campaign_id
+#                and t1.business_account_id = t2.business_account_id
+#                and t1.store_id = t2.store_id
+#                where t1.business_account_id = {business_account_id}
+#                and response in ('CONVERTED','DELIVERED')"""
+#
+#     if store_ids is None:
+#         a = 'and t2.campaign_id in (' + ','.join(map(str, campaign_id)) + ') group by response_date,response'
+#
+#         s = sql + a
+#
+#     else:
+#
+#         # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
+#         s = sql + 'and t2.campaign_id in (' + ','.join(map(str, campaign_id)) + ') and t1.store_id in (' + ','.join(
+#             map(str, store_ids)) + ') group by  response_date,response'  # %(store_ids)
+#
+#     formatted_sql = s.format(**arguments)
+#     print(formatted_sql)
+#
+#     try:
+#         results = db.engine.execute(formatted_sql)
+#         result_set = results.fetchall()
+#         print(result_set)
+#     except Exception as e:
+#         raise e
+#
+#     # for data in result_set:
+#     #     sub_json = {'date':str(data['response_date']), 'response': str(data['response']), 'count': str(data['count'])}
+#     #     print(sub_json)
+#     #     sub_list.append(sub_json.copy())
+#     #     print(sub_list)
+#
+#     converted_dict = {}
+#     delivered_dict = {}
+#     converted_list = []
+#     delivered_list = []
+#     for data in result_set:
+#         print(data)
+#
+#         if data['response'] == 'CONVERTED':
+#             converted_dict = {'date': str(data['response_date']), 'count': str(data['count'])}
+#             converted_list.append(converted_dict.copy())
+#             print(converted_list)
+#
+#         else:
+#             delivered_dict = {'date': str(data['response_date']), 'count': str(data['count'])}
+#             delivered_list.append(delivered_dict.copy())
+#             print(delivered_list)
+#
+#     print(converted_list)
+#     print()
+#     print(delivered_list)
+#
+#     campaign_dict['data'] = {'CONVERTED': converted_list, 'DELIVERED': delivered_list}
+#
+#     output_result = json.dumps(campaign_dict)
+#     loaded_json = json.loads(output_result)
+#
+#     return loaded_json
+
+
+def __consumer_visit(from_date, to_date, business_account_id, store_ids):
+
+    #return {"message": "Please use POST method to filter with tag_names inside"}, 404
+        arguments = locals()
+
+        print( from_date, to_date, business_account_id,  store_ids)
+        campaign_dict = dict()
+
+        campaign_dict['api_name'] = 'consumer visit'
+
+
+
+        report_duration_dict = dict()
+
+        start_date = from_date
+        end_date = to_date
+        report_duration_dict['start_date'] = start_date
+        report_duration_dict['end_date'] = end_date
+
+        campaign_dict['report_duration'] = report_duration_dict
+
+        sub_json = {}
+        sub_list = []
+
+        sql = """select count( t1.business_consumer_id) as count,t2.badge as badge,t1.interaction_date 
+                from
+                pika_dm.rt_consumer_events t1
+                join pika_dm.dim_business_consumer t2
+                on t1.business_consumer_id = t2.consumer_id
+                join pika_dm.dim_business_store_consumer t3
+                on t1.store_id = t3.store_id
+                and t1.business_consumer_id = t3.business_consumer_id
+                where t1.interaction_date between \'{from_date}\' and \'{to_date}\'
+                and t1.business_account_id = {business_account_id}
+                and t2.end_date = '9999-12-31 00:00:00'
+                and t3.end_date = '9999-12-31 00:00:00'"""
+
+        if store_ids is None:
+            a = 'group by t2.badge,t1.interaction_date'
+
+            s = sql + a
+
+        else:
+
+            # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
+            s = sql + ' and t1.store_id in (' + ','.join(map(str, store_ids)) + ') group by t2.badge,t1.interaction_date'  # %(store_ids)
+
+        formatted_sql = s.format(**arguments)
+        print(formatted_sql)
+
+        try:
+            results = db.engine.execute(formatted_sql)
+            result_set = results.fetchall()
+            print(result_set)
+        except Exception as e:
+            raise e
+
+        # for data in result_set:
+        #     sub_json = {'date':str(data['response_date']), 'response': str(data['response']), 'count': str(data['count'])}
+        #     print(sub_json)
+        #     sub_list.append(sub_json.copy())
+        #     print(sub_list)
+
+        for data in result_set:
+            #print(data)
+            print(data['interaction_date'])
+            sub_json={'bagde':data['badge'],'count':data['count'],'date':data['interaction_date']}
+            sub_list.append(sub_json.copy())
+            #print(sub_list)
+        campaign_dict['data'] =sub_list
+
+        output_result = json.dumps(campaign_dict)
+        loaded_json = json.loads(output_result)
+
+        return loaded_json

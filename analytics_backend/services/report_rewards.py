@@ -20,8 +20,8 @@ def reward_summary(business_account_id, date_param_cd):
     date_range = ParamsAppModel.get_date_range(business_account_id, date_param_cd)
     #print(date_range)
 
-    data = ParamsAppModel.get_param_data(business_account_id)
-    print(data)
+    ###########data = ParamsAppModel.get_param_data(business_account_id)
+    ###########print(data)
 
     if date_range:
         lower_bound = date_range['lower_bound']
@@ -139,7 +139,7 @@ def __reward_summary(business_account_id, date_param_cd, lower_bound, upper_boun
              consumer_new_count as new_customers
              from pika_dm.agg_buss_store_stats_daily
              where interaction_date between  '2014-08-01' and '2014-12-31'
-             and business_account_id=14 
+             and business_account_id={business_account_id} 
              group by interaction_date,interaction_redeem_count,interaction_redeem_points, 
              interaction_purchase_count,interaction_earn_points,interaction_checkin_count,consumer_new_count """
 
@@ -178,7 +178,7 @@ def __reward_summary(business_account_id, date_param_cd, lower_bound, upper_boun
                  consumer_new_count as new_customers
                  from pika_dm.agg_buss_store_stats_daily
                  where interaction_date between  '2014-08-01' and '2014-12-31'
-                 and business_account_id=14 
+                 and business_account_id={business_account_id} 
                  group by interaction_date,interaction_redeem_count,interaction_redeem_points, 
                  interaction_purchase_count,interaction_earn_points,interaction_checkin_count,consumer_new_count """
 
@@ -254,7 +254,7 @@ def __reward_activity_trend(business_account_id, from_date, to_date, date_params
              consumer_new_count as new_customers
              from pika_dm.agg_buss_store_stats_daily
              where interaction_date between  '2014-08-01' and '2014-12-31'
-             and business_account_id=14"""
+             and business_account_id={business_account_id} """
 
     if store_ids is None:
         a = ' group by interaction_date,interaction_redeem_count,interaction_redeem_points, ' \
@@ -282,12 +282,12 @@ def __reward_activity_trend(business_account_id, from_date, to_date, date_params
         raise e
 
     for data in result_set:
-        data_dict = {str(data['date']): {'redemptions': str(data['redemptions']),
+        data_dict =  {'date':str(data['date']),'redemptions': str(data['redemptions']),
                                          'points_redeemed': str(data['points_redeemed']),
                                          'purchases': str(data['purchases']),
                                          'points_earned': str(data['points_earned']),
                                          'check_ins': str(data['check_ins']),
-                                         'new_customers': str(data['new_customers'])}}
+                                         'new_customers': str(data['new_customers'])}
         print(data_dict)
         sub_list.append(data_dict.copy())
         print(sub_list)
@@ -328,7 +328,7 @@ def __reward_list(business_account_id, from_date, to_date, date_params_cd, store
             on t2.product_category_id = t3.product_category_id
             join pika_dm.agg_reward_performance_daily t4
             on t1.reward_id = t4.reward_id
-            where  t4.business_account_id = 14
+            where  t4.business_account_id = {business_account_id} 
            
             and t1.reward_begin_date between '2013-01-01' and '2017-12-31'"""
 
@@ -387,7 +387,7 @@ def __ref_param(business_account_id):
 
     #########  have to use to_date and from date   here
 
-    sql = """select lower_bound,upper_bound,prev_lower_bound,prev_upper_bound,param_name
+    sql = """select lower_bound,upper_bound,prev_lower_bound,prev_upper_bound,param_name_cd
             from pika_dm.ref_ParamApp
             where business_account_id = {business_account_id}"""
 

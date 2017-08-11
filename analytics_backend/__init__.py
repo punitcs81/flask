@@ -2,9 +2,13 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from celery import Celery
-
+import logging
 from config import config, Config
 #from auth_jwt import jwt
+from flask import Flask
+from flask_restful import Api, Resource
+from flask_restful.representations.json import output_json
+import logging
 
 # Flask extensions
 db = SQLAlchemy()
@@ -31,6 +35,9 @@ from analytics_backend.models.datamart import *
 # from . import events  # noqa
 
 
+
+
+
 def create_app(config_name=None, main=True):
     if config_name is None:
         config_name = os.environ.get('PA_CONFIG', 'development')
@@ -43,6 +50,16 @@ def create_app(config_name=None, main=True):
     # jwt.init_app(app)
 
     #Logging Test
+
+    logger = logging.getLogger(__name__)
+    file_handler = logging.FileHandler('/home/anvaya/Desktop/error.log')
+    formatter = logging.Formatter(
+        '%(asctime)s -  %(name)s - %(levelname)s - %(lineno)s -  %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.setLevel(logging.DEBUG)
+    # app.logger.addHandler(file_handler)
+    # app.logger.setLevel(logging.INFO)
 
     # ////////// **** FOLLOWING KEPT FOR FUTURE **** \\\\\\\\\\\\\\\\\\\\\\\\\\
     if main:

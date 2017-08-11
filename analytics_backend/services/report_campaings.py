@@ -10,7 +10,9 @@ import analytics_backend.utils.date_time as dt
 from analytics_backend.models.reference import ParamsAppModel, ConsumerTagsModel, InteractionTypeModel, DateModel
 from config import config
 import constants
+import logging
 
+logger = logging.getLogger(__name__)
 # need to remove this config part
 config_name = os.environ.get('PA_CONFIG', 'development')
 current_config = config[config_name]
@@ -40,6 +42,8 @@ def campaign_summary(business_account_id, store_ids, date_param_cd):
     # feedback_df1 = __feedback_till_date(business_account_id)
 
     # feedback_df2 = __campaign_till_date(business_account_id)
+
+    logger.info('calling campaign summary protected method')
     campaign_json = __campaign_summary(lower_bound, upper_bound, business_account_id, store_ids)
 
     # 1st block- data param
@@ -189,7 +193,29 @@ def rt_campaign_trend(business_account_id, date_param_cd, campaign_id, store_ids
     return campaign_data
     #return {"message": "there is no get request for the API"}, 404
 
+def campaign_performance(business_account_id, date_param_cd,  store_ids):
 
+    print(business_account_id,date_param_cd,store_ids)
+    if date_param_cd not in [r for r, in db.session.query(ParamsAppModel.param_name_cd.distinct()).all()]:
+        raise ValueError("Wrong date_param_cd")
+    date_range = ParamsAppModel.get_date_range(business_account_id, date_param_cd)
+
+    if date_range:
+        lower_bound = date_range['lower_bound']
+        upper_bound = date_range['upper_bound']
+        prev_lower_bound = date_range['prev_lower_bound']
+        prev_upper_bound = date_range['prev_upper_bound']
+        report_date = date_range['report_date']
+    else:
+
+        raise DatabaseError(
+            "ParamAppModel returns no corresponding date range for business_account_id=%s and date param"
+            % (business_account_id, date_param_cd))
+
+    campaign_data = __campaign_performance(report_date, lower_bound, upper_bound, business_account_id,
+                                        date_param_cd, store_ids)
+
+    return campaign_data
 ################################# PROTECTED METHODS  #####################################
 
 # def __feedback_tags_summary(from_date, to_date, business_account_id: int):
@@ -715,8 +741,9 @@ def __rt_campaign_summary(report_date, from_date, to_date, business_account_id, 
         # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
         s = sql + 'and store_id in (' + ','.join(map(str, store_ids)) + ') group by channel,response'  # %(store_ids)
 
-    formatted_sql = s.format(**arguments)
 
+    formatted_sql = s.format(**arguments)
+    print(formatted_sql)
     try:
         results = db.engine.execute(formatted_sql)
         result_set = results.fetchall()
@@ -936,16 +963,38 @@ def __campaign_trend(report_date, from_date, to_date, business_account_id, store
     except Exception as e:
         raise e
 
+    # for data in result_set:
+    #     sub_json = {'date':str(data['response_date']),'response': str(data['response']), 'count': str(data['count'])}
+    #     print(sub_json)
+    #     sub_list.append(sub_json.copy())
+    #     print(sub_list)
+    #
+    # print(sub_list)
+
+    #campaign_dict['data'] = sub_list
+
+    converted_dict={}
+    delivered_dict={}
+    converted_list=[]
+    delivered_list=[]
     for data in result_set:
-        sub_json = {str(data['response_date']): {'response': str(data['response']), 'count': str(data['count'])}}
-        print(sub_json)
-        sub_list.append(sub_json.copy())
-        print(sub_list)
+        print(data)
 
-    print(sub_list)
+        if data['response']=='CONVERTED':
+            converted_dict = {'date': str(data['response_date']), 'count': str(data['count'])}
+            converted_list.append(converted_dict.copy())
+            print(converted_list)
 
-    campaign_dict['data'] = sub_list
+        else:
+            delivered_dict = {'date': str(data['response_date']), 'count': str(data['count'])}
+            delivered_list.append(delivered_dict.copy())
+            print(delivered_list)
 
+    print(converted_list)
+    print()
+    print(delivered_list)
+
+    campaign_dict['data']={'CONVERTED':converted_list,'DELIVERED':delivered_list}
     output_result = json.dumps(campaign_dict)
     loaded_json = json.loads(output_result)
 
@@ -954,6 +1003,9 @@ def __campaign_trend(report_date, from_date, to_date, business_account_id, store
 
 ######################  RT CAMPAIGN TRENDS
 
+
+
+#####################old code #########################
 def __rt_campaign_trend(report_date, from_date, to_date, business_account_id, date_param_cd, campaign_id, store_ids):
     arguments = locals()
 
@@ -984,8 +1036,9 @@ def __rt_campaign_trend(report_date, from_date, to_date, business_account_id, da
              on t1.campaign_id  = t2.campaign_id
              and t1.business_account_id = t2.business_account_id
              and t1.store_id = t2.store_id
-             where t1.business_account_id = {business_account_id} 
-             and response in ('CONVERTED','DELIVERED')"""
+             where t1.business_account_id = {business_account_id}
+             and response in ('CONVERTED','DELIVERED')
+              and response_date between \'{from_date}\' and \'{to_date}\'"""
 
     if store_ids is None:
         a = 'and t2.campaign_id in (' + ','.join(map(str,campaign_id)) + ') group by response_date,response'
@@ -1007,15 +1060,134 @@ def __rt_campaign_trend(report_date, from_date, to_date, business_account_id, da
     except Exception as e:
         raise e
 
+    # for data in result_set:
+    #     sub_json = {'date':str(data['response_date']), 'response': str(data['response']), 'count': str(data['count'])}
+    #     print(sub_json)
+    #     sub_list.append(sub_json.copy())
+    #     print(sub_list)
+
+    converted_dict = {}
+    delivered_dict = {}
+    converted_list = []
+    delivered_list = []
     for data in result_set:
-        sub_json = {str(data['response_date']): {'response': str(data['response']), 'count': str(data['count'])}}
+        print(data)
+
+        if data['response'] == 'CONVERTED':
+            converted_dict = {'date': str(data['response_date']), 'count': str(data['count'])}
+            converted_list.append(converted_dict.copy())
+            print(converted_list)
+
+        else:
+            delivered_dict = {'date': str(data['response_date']), 'count': str(data['count'])}
+            delivered_list.append(delivered_dict.copy())
+            print(delivered_list)
+
+    print(converted_list)
+    print()
+    print(delivered_list)
+
+    campaign_dict['data'] = {'CONVERTED': converted_list, 'DELIVERED': delivered_list}
+
+    output_result = json.dumps(campaign_dict)
+    loaded_json = json.loads(output_result)
+
+    return loaded_json
+
+
+
+
+def __campaign_performance(report_date, from_date, to_date, business_account_id, date_param_cd,  store_ids):
+    arguments = locals()
+
+
+    print(report_date, from_date, to_date, business_account_id, date_param_cd,  store_ids)
+    campaign_dict = dict()
+
+    campaign_dict['type'] = 'Real Time'
+    campaign_dict['date_param_cd'] = date_param_cd
+    campaign_dict['aggregation_level'] = 'daily'
+
+    report_duration_dict = dict()
+
+    start_date = from_date
+    end_date = to_date
+    report_duration_dict['start_date'] = start_date
+    report_duration_dict['end_date'] = end_date
+
+    campaign_dict['report_duration'] = report_duration_dict
+
+
+    sub_json = {}
+    sub_list = []
+
+    sql = """SELECT t1.campaign_id,t2.campaign_name AS campaign_name,CAST(t2.start_date AS DATE) AS start_date,
+            (SUM(CASE WHEN t1.response = "CONVERTED" THEN t1.consumer_count ELSE 0 END) /SUM(CASE WHEN t1.response = "DELIVERED" THEN t1.consumer_count ELSE 0 END))*100 AS perf
+            FROM pika_dm.agg_campaign_performance_daily t1
+            INNER JOIN pika_dm.dim_campaign t2 ON t1.campaign_id=t2.campaign_id
+            WHERE t2.end_date='9999-12-31 00:00:00' and t1.business_account_id = {business_account_id} AND response_date between \'{from_date}\' and \'{to_date}\' And response<>'SENT'"""
+
+    if store_ids is None:
+        a = 'GROUP BY t1.campaign_id,t2.campaign_name,t2.start_date ORDER BY perf DESC LIMIT 3'
+
+        s = sql + a
+
+    else:
+
+        # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
+        s = sql + 'and  t1.store_id in (' + ','.join(map(str,store_ids)) + ') GROUP BY t1.campaign_id,t2.campaign_name,t2.start_date ORDER BY perf DESC LIMIT 3'
+    formatted_sql = s.format(**arguments)
+    print(formatted_sql)
+
+    try:
+        results = db.engine.execute(formatted_sql)
+        result_set = results.fetchall()
+        print(result_set)
+    except Exception as e:
+        raise e
+
+    for data in result_set:
+        sub_json = {'campaign_name': str(data['campaign_name']),'start_date': str(data['start_date']),'Performance': str(data['perf'])}
         print(sub_json)
         sub_list.append(sub_json.copy())
         print(sub_list)
 
-    print(sub_list)
 
-    campaign_dict['data'] = sub_list
+    sub_json1 = {}
+    sub_list1 = []
+
+    sql = """SELECT t1.campaign_id,t2.campaign_name AS campaign_name,CAST(t2.start_date AS DATE) AS start_date,
+                (SUM(CASE WHEN t1.response = "CONVERTED" THEN t1.consumer_count ELSE 0 END) /SUM(CASE WHEN t1.response = "DELIVERED" THEN t1.consumer_count ELSE 0 END))*100 AS perf
+                FROM pika_dm.agg_campaign_performance_daily t1
+                INNER JOIN pika_dm.dim_campaign t2 ON t1.campaign_id=t2.campaign_id
+                WHERE t2.end_date='9999-12-31 00:00:00' and t1.business_account_id = {business_account_id} AND response_date between \'{from_date}\' and \'{to_date}\' And response<>'SENT'"""
+
+    if store_ids is None:
+        a = 'GROUP BY t1.campaign_id,t2.campaign_name,t2.start_date ORDER BY perf LIMIT 3'
+
+        s = sql + a
+
+    else:
+
+        # sql_query = 'select name from studens where id in (' + ','.join(map(str, l)) + ')'
+        s = sql + 'and  t1.store_id in (' + ','.join(map(str, store_ids)) + ') GROUP BY t1.campaign_id,t2.campaign_name,t2.start_date ORDER BY perf LIMIT 3'
+    formatted_sql = s.format(**arguments)
+    print(formatted_sql)
+
+    try:
+        results = db.engine.execute(formatted_sql)
+        result_set = results.fetchall()
+        print(result_set)
+    except Exception as e:
+        raise e
+
+    for data in result_set:
+        sub_json1 = {'campaign_name': str(data['campaign_name']), 'start_date': str(data['start_date']),
+                    'Performance': str(data['perf'])}
+        print(sub_json1)
+        sub_list1.append(sub_json1.copy())
+        print(sub_list1)
+    campaign_dict['data'] = {'Top Three':sub_list,'Worst Three':sub_list1}
 
     output_result = json.dumps(campaign_dict)
     loaded_json = json.loads(output_result)
